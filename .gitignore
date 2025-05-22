@@ -2,5 +2,37 @@
 .idea
 *.sql
 .env
-.log
 /logs
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+
+*.log
+.log
+/logs/
+logs/
+
+.venv/
+venv/
+ENV/
+env/
+
+.env                    # Переменные окружения с токенами
+.env.local
+.env.production
+config_local.py         # Локальные настройки
+secrets.json           # Файлы с секретами
+*.key                  # Ключи шифрования
+*.pem                  # SSL сертификаты
+
+*.sql                  # SQLite файлы базы данных
+*.db
+*.sqlite
+*.sqlite3
+database_*.sql         # Ваши файлы БД по паттерну

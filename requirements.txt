@@ -3,3 +3,4 @@ SQLAlchemy~=2.0.41
 aiogram~=3.20.0.post0
 aiosqlite~=0.21.0
 greenlet~=3.2.2
+alembic~=1.16.1

@@ -101,14 +101,59 @@ class DatabaseManager:
 
         self._initialized = False
 
+    async def check_migration_status(self):
+        if not self._initialized:
+            await self.initialize()
+
+        try:
+            from alembic.config import Config as AlembicConfig
+            from alembic import command
+            from alembic.script import ScriptDirectory
+            from alembic.runtime.migration import MigrationContext
+
+            alembic_cfg = AlembicConfig('alembic.ini')
+            alembic_cfg.set_main_option('sqlalchemy.url', Config.DATABASE_URI)
+
+            script = ScriptDirectory.from_config(alembic_cfg)
+
+            def get_migration_info(sync_conn):
+                context = MigrationContext.configure(sync_conn)
+                current_revision = context.get_current_revision()
+                return current_revision
+
+            async with self.engine.connect() as connection:
+                current_revision = await connection.run_sync(get_migration_info)
+                head_revision = script.get_current_head()
+
+                if current_revision != head_revision:
+                    logger.warning(f"Database is not up to date. Current revision: {current_revision}, head revision: {head_revision}")
+                    return False
+                else:
+                    logger.info("Database is up to date")
+                    return True
+
+        except Exception as e:
+            logger.error(f"Error checking migration status: {e}")
+            raise
+
 db_manager = DatabaseManager()
 
 async def initialize_database():
+    # initialize database
     logger.info("Initializing database")
     await db_manager.initialize()
 
+    # check migration status
+    logger.info("Checking migration status")
+    migrations_ok = await db_manager.check_migration_status()
+    if not migrations_ok:
+        if Config.__class.__name__ == 'ProductionConfig':
+            raise RuntimeError("Database is not up to date. Please run 'alembic upgrade head' to upgrade the database.")
+        else:
+            logger.warning("Database is not up to date. Please run 'alembic upgrade head' to upgrade the database.")
+
+    # create tables
     logger.info("Creating tables")
-    logger.debug(f'{Config.DATABASE_URI}')
     await db_manager.create_tables()
 
 async def close_database():
