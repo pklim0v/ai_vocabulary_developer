@@ -12,4 +12,4 @@ async def init_common_router(bot: Bot) -> Router:
 
     except Exception as e:
         logger.error(f"Error initializing the common router: {e}")
-        return None
+        raise

@@ -74,6 +74,7 @@ if __name__ == '__main__':
         logger.error(f"Config validation failed: {e}")
         exit(1)
 
+    # running bot
     try:
         asyncio.run(main())
 

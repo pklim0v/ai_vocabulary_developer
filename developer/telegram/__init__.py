@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 # getting config
 Config = get_config()
 
-# iniitial telegram parameters
+# initial telegram parameters
 developer_bot = Bot(token=Config.TELEGRAM_BOT_TOKEN)
 storage = MemoryStorage()
 developer_dispatcher = Dispatcher(storage=storage)
