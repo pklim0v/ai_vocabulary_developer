@@ -23,6 +23,8 @@ venv/
 ENV/
 env/
 
+/developer/localization/locales
+
 .env                    # Переменные окружения с токенами
 .env.local
 .env.production
