@@ -18,8 +18,15 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
             current_user = await user_service.get_user_by_telegram_id(message.from_user.id)
             logger.debug(f"Current user: {current_user}")
 
-        current_locale = message.from_user.language_code
-        await message.answer(t('commands.start', locale=current_locale))
+        # user not registered
+        if not current_user:
+            current_locale = message.from_user.language_code
+            await message.answer(t('commands.start', locale=current_locale))
+            await message.answer(
+                text=t('messages.not_registered', locale=current_locale),
+                reply_markup=k('keyboards.register', locale=current_locale),
+                parse_mode='MarkdownV2'
+            )
 
     @router.message(Command(commands=['test1']))
     @with_localization
