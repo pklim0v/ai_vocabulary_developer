@@ -58,7 +58,7 @@ class Token(Base):
     cost = Column(Float, nullable=False, default=0.0)
 
     #relationships
-    User = relationship("User", back_populates="tokens")
+    user = relationship("User", back_populates="tokens")
 
     def __repr__(self):
         return f"<Token(id={self.id}, user_id={self.user_id})>"

@@ -38,7 +38,7 @@ def with_localization(handler):
 
             return await handler(message_or_callback, t, k, *args, **kwargs)
 
-        with db_manager.get_session as session:
+        async with db_manager.get_session() as session:
             user_service = UserService(session)
             user_language = await user_service.get_user_language(user_id)
 
@@ -83,7 +83,7 @@ def with_localization_and_state(handler):
 
             return await handler(message_or_callback, state, t, k, *args, **kwargs)
 
-        async with db_manager.get_session as session:
+        async with db_manager.get_session() as session:
             user_service = UserService(session)
             user_language = await user_service.get_user_language(user_id)
 

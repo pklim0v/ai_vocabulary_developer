@@ -13,7 +13,7 @@ class UserService:
             select(User).filter_by(telegram_id=telegram_id)
         )
 
-        return result.scalars.one_or_none()
+        return result.scalars().one_or_none()
 
     async def create_user(self, telegram_id: int, **kwargs) -> User:
         user = User(telegram_id=telegram_id, **kwargs)
@@ -34,4 +34,5 @@ class UserService:
     async def get_user_language(self, telegram_id: int) -> str:
         user = await self.get_user_by_telegram_id(telegram_id)
         return user.language_code if user else "en"
+
 

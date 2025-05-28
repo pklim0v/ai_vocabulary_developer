@@ -14,6 +14,9 @@ class Config:
     DEFAULT_LANGUAGE = 'en'
     SUPPORTED_LANGUAGES = ['en', 'ru']
 
+    # admin functions
+    INITIAL_ADMINS = os.environ.get('INITIAL_ADMINS', '').split(',')
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

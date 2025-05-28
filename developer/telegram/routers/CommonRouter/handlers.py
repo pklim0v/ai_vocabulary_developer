@@ -1,12 +1,23 @@
 from aiogram import types, Router, Bot
 from aiogram.filters import Command
 from developer.telegram.common.decorators import with_localization
+from developer.services import UserService
+from developer.database.session import db_manager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def setup_handlers(router: Router, bot: Bot) -> None:
     @router.message(Command(commands=["start"]))
     @with_localization
     async def start_command(message: types.Message, t, k):
+        # looking up for the current user
+        async with db_manager.get_session() as session:
+            user_service = UserService(session)
+            current_user = await user_service.get_user_by_telegram_id(message.from_user.id)
+            logger.debug(f"Current user: {current_user}")
+
         current_locale = message.from_user.language_code
         await message.answer(t('commands.start', locale=current_locale))
 
