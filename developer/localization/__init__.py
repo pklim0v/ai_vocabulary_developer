@@ -1,9 +1,11 @@
 import json
+import locale
 import os
 from typing import Any, Dict, Optional
 from pathlib import Path
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from .text_generators import text_generators
+from .keyboard_generators import keyboard_generator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -122,6 +124,59 @@ class Localization:
 
         return InlineKeyboardMarkup()
 
+    def _get_static_keyboard(self, key: str, locale: str, **kwargs) -> Optional[InlineKeyboardMarkup]:
+        keyboard = self._get_nested_keyboard(self.locales[locale], key)
+
+        if keyboard is None and locale != self.default_locale:
+            keyboard = self._get_nested_keyboard(self.locales[self.default_locale], key)
+
+        try:
+            if keyboard is None:
+                logger.debug(f"Keyboard with key '{key}' not found in locale '{locale}'")
+                return keyboard
+
+            else:
+                logger.debug(f"Keyboard with key '{key}' found in locale '{locale}'")
+                return keyboard
+
+        except KeyError as e:
+            raise ValueError(f"Missing argument for keyboard '{key}': {e}")
+
+    def _get_nested_keyboard(self, data: dict, key: str) -> Optional[InlineKeyboardMarkup]:
+        if not data:
+            return None
+
+        keys = key.split(".")
+        current = data
+
+        for k in keys:
+            if isinstance(current, dict) and k in current:
+                current = current[k]
+
+            else:
+                return None
+
+        logger.debug(f"Keyboard with key '{key}' found in locale '{locale}: {current}'")
+        keyboard_buttons = []
+        ordered_buttons = []
+
+        try:
+            for button in current['buttons']:
+                keyboard_buttons.append(InlineKeyboardButton(
+                    text=current['buttons'][button]['label'],
+                    callback_data=current['buttons'][button]['callback_data']))
+
+            for i in range(0, len(keyboard_buttons), current['buttons_per_row']):
+                ordered_buttons.append(keyboard_buttons[i:i+current['buttons_per_row']])
+
+        except KeyError as e:
+            logger.error(f"Missing argument for keyboard '{key}': {e}")
+            return None
+
+        return InlineKeyboardMarkup(inline_keyboard=ordered_buttons)
+
+    def _get_dynamic_keyboard(self, key: str, locale: str, **kwargs) -> Optional[InlineKeyboardMarkup]:
+        return keyboard_generator.get_keyboard(key, locale, kwargs)
 
 
 # creating global

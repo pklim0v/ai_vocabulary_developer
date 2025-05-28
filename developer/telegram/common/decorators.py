@@ -30,9 +30,13 @@ def with_localization(handler):
             user_id = message_or_callback.from_user.id
 
         else:
-            def t(key: str, **format_kwargs):
-                return i18n.get_text(key, 'en', **format_kwargs)
-            return await handler(message_or_callback, t, *args, **kwargs)
+            def t(key: str, locale = 'en', **format_kwargs):
+                return i18n.get_text(key, locale, **format_kwargs)
+
+            def k(key: str, locale = 'en', **format_kwargs):
+                return i18n.get_keyboard(key, locale, **format_kwargs)
+
+            return await handler(message_or_callback, t, k, *args, **kwargs)
 
         with db_manager.get_session as session:
             user_service = UserService(session)
@@ -41,7 +45,10 @@ def with_localization(handler):
         def t(key: str, **format_kwargs):
             return i18n.get_text(key, user_language, **format_kwargs)
 
-        return await handler(message_or_callback, t, *args, **kwargs)
+        def k(key: str, **format_kwargs):
+            return i18n.get_keyboard(key, user_language, **format_kwargs)
+
+        return await handler(message_or_callback, t, k, *args, **kwargs)
 
     return wrapper
 
@@ -68,9 +75,13 @@ def with_localization_and_state(handler):
             user_id = message_or_callback.from_user.id
 
         else:
-            def t(key: str, **format_kwargs):
-                return i18n.get_text(key, 'en', **format_kwargs)
-            return await handler(message_or_callback, state, t, *args, **kwargs)
+            def t(key: str, locale = 'en', **format_kwargs):
+                return i18n.get_text(key, locale, **format_kwargs)
+
+            def k(key: str, locale = 'en', **format_kwargs):
+                return i18n.get_keyboard(key, locale, **format_kwargs)
+
+            return await handler(message_or_callback, state, t, k, *args, **kwargs)
 
         async with db_manager.get_session as session:
             user_service = UserService(session)
@@ -79,7 +90,10 @@ def with_localization_and_state(handler):
         def t(key: str, **format_kwargs):
             return i18n.get_text(key, user_language, **format_kwargs)
 
-        return await handler(message_or_callback, state, t, *args, **kwargs)
+        def k(key: str, **format_kwargs):
+            return i18n.get_keyboard(key, user_language, **format_kwargs)
+
+        return await handler(message_or_callback, state, t, k, *args, **kwargs)
 
     return wrapper
 
