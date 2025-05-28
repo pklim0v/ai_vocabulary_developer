@@ -82,3 +82,12 @@ def with_localization_and_state(handler):
         return await handler(message_or_callback, state, t, *args, **kwargs)
 
     return wrapper
+
+def admin_required(handler):
+    @wraps(handler)
+    async def wrapper(message_or_callback, *args, **kwargs):
+        if isinstance(message_or_callback, types.Message):
+            user_id = message_or_callback.from_user.id
+
+        elif isinstance(message_or_callback, types.CallbackQuery):
+            user_id = message_or_callback.from_user.id
