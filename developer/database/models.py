@@ -6,26 +6,42 @@ from .session import Base
 class User(Base):
     __tablename__ = "users"
 
+    # user common data
     id = Column(Integer, primary_key=True)
     telegram_id = Column(Integer, unique=True, nullable=False, index=True)
     username = Column(String(32), nullable=False)
+    language_code = Column(String(10), nullable=False, default="en")
+    agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
+    timezone = Column(String(256), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
-    language_code = Column(String(10), nullable=False, default="en")
+
+    # user-bot relations data
     is_admin = Column(Boolean, nullable=False, default=False)
     is_confirmed = Column(Boolean, nullable=False, default=False)
-    is_always_free_of_charge = Column(Boolean, nullable=False, default=False)
-    payment_confirmed = Column(Boolean, nullable=False, default=False)
-    agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
+
+
+    # bot's community data
     agreed_to_accept_users_words = Column(Boolean, nullable=False, default=False)
     agreed_to_share_own_words = Column(Boolean, nullable=False, default=False)
     agreed_to_share_telegram_link = Column(Boolean, nullable=False, default=False)
     agreed_to_participate_in_challenges = Column(Boolean, nullable=False, default=False)
-    timezones = Column(String(256), nullable=False, default="UTC")
+
+    # subscription data
+    is_always_free_of_charge = Column(Boolean, nullable=False, default=False)
+    trial_starts_at = Column(DateTime, nullable=True)
+    trial_ends_at = Column(DateTime, nullable=True)
+    payment_confirmed = Column(Boolean, nullable=False, default=False)
+    subscription_type = Column(String(20), nullable=True)
+    subscription_starts_at = Column(DateTime, nullable=True)
+    subscription_ends_at = Column(DateTime, nullable=True)
+    subscription_autorenew = Column(Boolean, nullable=False, default=False)
+    subscription_cancelled_at = Column(DateTime, nullable=True)
 
     # relationships
     tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")
     words = relationship("Word", back_populates="user", cascade="all, delete-orphan")
+    payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
 
 
     def __repr__(self):
@@ -62,3 +78,46 @@ class Token(Base):
 
     def __repr__(self):
         return f"<Token(id={self.id}, user_id={self.user_id})>"
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    payment_id = Column(String(256), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), nullable=False, default="RUB")
+    subscription_type = Column(String(20), nullable=False)
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+
+    #relationships
+    user = relationship("User", back_populates="payments")
+
+    def __repr__(self):
+        return (f"<Payment(id={self.id}, user_id={self.user_id}, payment_id={self.payment_id},"
+                f" amount={self.amount}, currency={self.currency}, subscription_type={self.subscription_type},"
+                f" status={self.status}, created_at={self.created_at}, completed_at={self.completed_at})>")
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(50), nullable=False, unique=True)
+    discount_percent = Column(Integer, nullable=False, default=0)
+    discount_amount = Column(Float, nullable=False, default=0.0)
+    uses_limit = Column(Integer, nullable=True)
+    uses_count = Column(Integer, nullable=False, default=0)
+    valid_from = Column(DateTime, nullable=False)
+    valid_until = Column(DateTime, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<PromoCode(id={self.id}, code={self.code}, discount_percent={self.discount_percent}," \
+               f" discount_amount={self.discount_amount}, uses_limit={self.uses_limit}, " \
+               f"uses_count={self.uses_count}, valid_from={self.valid_from}, valid_until={self.valid_until}, " \
+               f"is_active={self.is_active}, created_at={self.created_at})>"
