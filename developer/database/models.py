@@ -18,9 +18,9 @@ class User(Base):
 
     # terms_of_usage data
     agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
-    accepted_agreement_id = Column(Integer, ForeignKey("user_agreements.id"), nullable=False)
+    accepted_agreement_id = Column(Integer, ForeignKey("user_agreements.id"), nullable=True)
     agreement_accepted_at = Column(DateTime, nullable=True)
-    accepted_privacy_policy_id = Column(Integer, ForeignKey("privacy_policies.id"), nullable=False)
+    accepted_privacy_policy_id = Column(Integer, ForeignKey("privacy_policies.id"), nullable=True)
     policy_accepted_at = Column(DateTime, nullable=True)
 
     # user-bot relations data
