@@ -18,7 +18,9 @@ class User(Base):
 
     # terms_of_usage data
     agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
+    accepted_agreement_id = Column(Integer, ForeignKey("user_agreements.id"), nullable=False)
     agreement_accepted_at = Column(DateTime, nullable=True)
+    accepted_privacy_policy_id = Column(Integer, ForeignKey("privacy_policies.id"), nullable=False)
     policy_accepted_at = Column(DateTime, nullable=True)
 
     # user-bot relations data
@@ -49,6 +51,17 @@ class User(Base):
     words = relationship("Word", back_populates="user", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
 
+    # relationships with user agreements and privacy policies
+    accepted_agreement = relationship("UserAgreement", foreign_keys="User.accepted_agreement_id", post_update=True)
+    accepted_privacy_policy = relationship("PrivacyPolicy", foreign_keys="User.accepted_privacy_policy_id", post_update=True)
+
+    # relationships for agreements and privacy policies administration
+    activated_agreement = relationship("UserAgreement", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_by")
+    activated_privacy_policy = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_by")
+    deactivated_agreement = relationship("UserAgreement", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_by")
+    deactivated_privacy_policy = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_by")
+
+
 
     def __repr__(self):
         return f"<User(id={self.id}, name={self.username}, telegram_id={self.telegram_id})>"
@@ -67,8 +80,12 @@ class UserAgreement(Base):
     deactivated_at = Column(DateTime, nullable=True)
     deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    # relationships
-    users = relationship("User", back_populates="accepted_agreement")
+    # relationships for administration
+    activated_by = relationship("User", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_agreement")
+    deactivated_by = relationship("User", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_agreement")
+
+    # users who accepted the agreement
+    users = relationship("User", foreign_keys="User.accepted_agreement_id", back_populates="accepted_agreement")
 
     def __repr(self):
         return f"<UserAgreements(id={self.id}, version={self.version}, url={self.url}, created_at={self.created_at}, " \
@@ -88,8 +105,12 @@ class PrivacyPolicy(Base):
     deactivated_at = Column(DateTime, nullable=True)
     deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    # relationships
-    users = relationship("User", back_populates="accepted_privacy_policy")
+    # relationships for administration
+    activated_by = relationship("User", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_privacy_policy")
+    deactivated_by = relationship("User", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_privacy_policy")
+
+    # users who accepted the privacy policy
+    users = relationship("User", foreign_keys="User.accepted_privacy_policy_id", back_populates="accepted_privacy_policy")
 
 
     def __repr__(self):
