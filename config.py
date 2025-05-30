@@ -25,6 +25,18 @@ class Config:
     # admin functions
     INITIAL_ADMINS = os.environ.get('INITIAL_ADMINS', '').split(',')
 
+    # terms of use
+    TERMS_OF_USE = {
+        'en': {
+            'eula': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20',
+            'privacy': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20'
+        },
+        'ru': {
+            'eula': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20',
+            'privacy': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20'
+        }
+    }
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
