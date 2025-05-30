@@ -33,6 +33,6 @@ class UserService:
 
     async def get_user_language(self, telegram_id: int) -> str:
         user = await self.get_user_by_telegram_id(telegram_id)
-        return user.language_code if user else "en"
+        return user.language_code if user else None
 
 

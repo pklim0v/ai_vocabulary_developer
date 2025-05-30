@@ -12,6 +12,7 @@ class User(Base):
     username = Column(String(32), nullable=False)
     language_code = Column(String(10), nullable=False, default="en")
     agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
+    time_format = Column(Integer, nullable=False, default=24)
     timezone = Column(String(256), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -19,7 +20,8 @@ class User(Base):
     # user-bot relations data
     is_admin = Column(Boolean, nullable=False, default=False)
     is_confirmed = Column(Boolean, nullable=False, default=False)
-
+    confirmed_admin_id = Column(Integer, nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
 
     # bot's community data
     agreed_to_accept_users_words = Column(Boolean, nullable=False, default=False)
@@ -85,6 +87,7 @@ class Payment(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(String(20), nullable=False)
     payment_id = Column(String(256), nullable=False)
     amount = Column(Float, nullable=False)
     currency = Column(String(3), nullable=False, default="RUB")

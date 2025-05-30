@@ -23,30 +23,31 @@ def with_localization(handler):
     """
     @wraps(handler)
     async def wrapper(message_or_callback, *args, **kwargs):
-        if isinstance(message_or_callback, types.Message):
+        # retrieving user id
+        if isinstance(message_or_callback, types.Message) or isinstance(message_or_callback, types.CallbackQuery):
             user_id = message_or_callback.from_user.id
 
-        if isinstance(message_or_callback, types.CallbackQuery):
-            user_id = message_or_callback.from_user.id
+        # retrieving user language
+        async with db_manager.get_session() as session:
+            user_service = UserService(session)
+            user_language = await user_service.get_user_language(user_id)
+
+
+        if user_language:
+            # if we know user's language - we use it for localization
+            def t(key: str, **format_kwargs):
+                return i18n.get_text(key, user_language, **format_kwargs)
+
+            def k(key: str, **format_kwargs):
+                return i18n.get_keyboard(key, user_language, **format_kwargs)
 
         else:
+            # if we don't know user's language - we use the default one
             def t(key: str, locale = 'en', **format_kwargs):
                 return i18n.get_text(key, locale, **format_kwargs)
 
             def k(key: str, locale = 'en', **format_kwargs):
                 return i18n.get_keyboard(key, locale, **format_kwargs)
-
-            return await handler(message_or_callback, t, k, *args, **kwargs)
-
-        async with db_manager.get_session() as session:
-            user_service = UserService(session)
-            user_language = await user_service.get_user_language(user_id)
-
-        def t(key: str, **format_kwargs):
-            return i18n.get_text(key, user_language, **format_kwargs)
-
-        def k(key: str, **format_kwargs):
-            return i18n.get_keyboard(key, user_language, **format_kwargs)
 
         return await handler(message_or_callback, t, k, *args, **kwargs)
 
@@ -68,30 +69,30 @@ def with_localization_and_state(handler):
     """
     @wraps(handler)
     async def wrapper(message_or_callback, state, *args, **kwargs):
-        if isinstance(message_or_callback, types.Message):
+        # retrieving user id
+        if isinstance(message_or_callback, types.Message) or isinstance(message_or_callback, types.CallbackQuery):
             user_id = message_or_callback.from_user.id
 
-        elif isinstance(message_or_callback, types.CallbackQuery):
-            user_id = message_or_callback.from_user.id
+        # retrieving user language
+        async with db_manager.get_session() as session:
+            user_service = UserService(session)
+            user_language = await user_service.get_user_language(user_id)
+
+        if user_language:
+            # if we know user's language - we use it for localization
+            def t(key: str, **format_kwargs):
+                return i18n.get_text(key, user_language, **format_kwargs)
+
+            def k(key: str, **format_kwargs):
+                return i18n.get_keyboard(key, user_language, **format_kwargs)
 
         else:
+            # if we don't know user's language - we use the default one
             def t(key: str, locale = 'en', **format_kwargs):
                 return i18n.get_text(key, locale, **format_kwargs)
 
             def k(key: str, locale = 'en', **format_kwargs):
                 return i18n.get_keyboard(key, locale, **format_kwargs)
-
-            return await handler(message_or_callback, state, t, k, *args, **kwargs)
-
-        async with db_manager.get_session() as session:
-            user_service = UserService(session)
-            user_language = await user_service.get_user_language(user_id)
-
-        def t(key: str, **format_kwargs):
-            return i18n.get_text(key, user_language, **format_kwargs)
-
-        def k(key: str, **format_kwargs):
-            return i18n.get_keyboard(key, user_language, **format_kwargs)
 
         return await handler(message_or_callback, state, t, k, *args, **kwargs)
 

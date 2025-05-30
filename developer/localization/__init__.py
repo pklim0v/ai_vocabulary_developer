@@ -176,7 +176,12 @@ class Localization:
         return InlineKeyboardMarkup(inline_keyboard=ordered_buttons)
 
     def _get_dynamic_keyboard(self, key: str, locale: str, **kwargs) -> Optional[InlineKeyboardMarkup]:
-        return keyboard_generator.get_keyboard(key, locale, kwargs)
+        keyboard = keyboard_generator.get_keyboard(key, locale, kwargs)
+
+        if keyboard is None:
+            keyboard = keyboard_generator.get_keyboard(key, self.default_locale, kwargs)
+
+        return keyboard
 
 
 # creating global

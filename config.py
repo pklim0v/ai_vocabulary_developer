@@ -13,6 +13,15 @@ class Config:
     # localization
     DEFAULT_LANGUAGE = 'en'
     SUPPORTED_LANGUAGES = ['en', 'ru']
+    BASIC_KEYBOARD_CONTEXT = {
+            'callback_base': 'locale_selection',
+            'buttons_in_a_row': 2,
+            'buttons': {
+                'en': {'label': '🇬🇧English'},
+                'ru': {'label': '🇷🇺Русский'},
+                'system': {'label': '📱System'}
+            }
+        }
 
     # admin functions
     INITIAL_ADMINS = os.environ.get('INITIAL_ADMINS', '').split(',')

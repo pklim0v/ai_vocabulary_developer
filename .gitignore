@@ -25,6 +25,7 @@ env/
 
 /developer/localization/locales
 /developer/localization/generators
+/schemas/
 
 .env                    # Переменные окружения с токенами
 .env.local

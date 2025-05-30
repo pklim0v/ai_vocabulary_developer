@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import types, Router, Bot
 from aiogram.filters import Command
 from developer.telegram.common.decorators import with_localization
@@ -27,6 +28,7 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                 reply_markup=k('keyboards.register', locale=current_locale),
                 parse_mode='MarkdownV2'
             )
+
 
     @router.message(Command(commands=['test1']))
     @with_localization
@@ -82,3 +84,62 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
             reply_markup=k('generate_numeric_keyboard', locale=user_locale, context=keyboard_context),
             parse_mode='MarkdownV2'
             )
+
+        @router.message()
+        @with_localization
+        async def parasite_message(message: types.Message, t, k):
+            """
+            Sets up message handlers for a given router for processing incoming bot messages
+            and executing actions based on user interactions. This function integrates a localized
+            handler for processing messages and cleaning up the chat by deleting messages after
+            a short delay.
+
+            :param router: The router object that manages routes for message handling.
+            :type router: Router
+            :param bot: The bot instance used to interact with Telegram's Bot API.
+            :type bot: Bot
+            :raises asyncio.CancelledError: If the asynchronous operation is canceled
+                during execution.
+            """
+            async with db_manager.get_session() as session:
+                user_service = UserService(session)
+                current_user = await user_service.get_user_by_telegram_id(message.from_user.id)
+                logger.debug(f"Current user: {current_user}")
+
+            if current_user:
+                current_locale = current_user.language_code
+
+            else:
+                current_locale = message.from_user.language_code
+            try:
+                chat_id = message.from_user.id
+                received_message_id = message.message_id
+
+            except Exception as e:
+                logger.error(f"Error processing unexpected message: {e}")
+
+            try:
+                reply_message = await message.answer(
+                    text=t('messages.unexpected_message', locale=current_locale),
+                    locale=current_locale,
+                    parse_mode='MarkdownV2'
+                )
+
+            except Exception as e:
+                logger.error(f"Error replying unexpected message: {e}")
+
+            await asyncio.sleep(2)
+
+            # deleting the original message and the reply message after a short delay
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=received_message_id)
+
+            except Exception as e:
+                logger.error(f"Error deleting original unexpected message: {e}")
+
+            # deleting the reply message
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=reply_message.message_id)
+
+            except Exception as e:
+                logger.error(f"Error deleting reply for unexpected message: {e}")
