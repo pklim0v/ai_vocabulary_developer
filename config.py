@@ -14,12 +14,11 @@ class Config:
     DEFAULT_LANGUAGE = 'en'
     SUPPORTED_LANGUAGES = ['en', 'ru']
     BASIC_KEYBOARD_CONTEXT = {
-            'callback_base': 'locale_selection',
+            'callback_base': 'locale-selection',
             'buttons_in_a_row': 2,
             'buttons': {
                 'en': {'label': '🇬🇧English'},
-                'ru': {'label': '🇷🇺Русский'},
-                'system': {'label': '📱System'}
+                'ru': {'label': '🇷🇺Русский'}
             }
         }
 
