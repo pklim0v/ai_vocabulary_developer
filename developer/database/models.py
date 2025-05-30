@@ -11,11 +11,15 @@ class User(Base):
     telegram_id = Column(Integer, unique=True, nullable=False, index=True)
     username = Column(String(32), nullable=False)
     language_code = Column(String(10), nullable=False, default="en")
-    agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
     time_format = Column(Integer, nullable=False, default=24)
     timezone = Column(String(256), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # terms_of_usage data
+    agreed_to_terms_of_service = Column(Boolean, nullable=False, default=False)
+    agreement_accepted_at = Column(DateTime, nullable=True)
+    policy_accepted_at = Column(DateTime, nullable=True)
 
     # user-bot relations data
     is_admin = Column(Boolean, nullable=False, default=False)
@@ -47,7 +51,50 @@ class User(Base):
 
 
     def __repr__(self):
-        return f"<User(id={self.id}, name={self.name}, telegram_id={self.telegram_id})>"
+        return f"<User(id={self.id}, name={self.username}, telegram_id={self.telegram_id})>"
+
+
+class UserAgreement(Base):
+    __tablename__ = "user_agreements"
+
+    id = Column(Integer, primary_key=True)
+    version = Column(String(10), nullable=False)
+    url = Column(String(256), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=False, index=True)
+    activated_at = Column(DateTime, nullable=True)
+    activated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    deactivated_at = Column(DateTime, nullable=True)
+    deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # relationships
+    users = relationship("User", back_populates="accepted_agreement")
+
+    def __repr(self):
+        return f"<UserAgreements(id={self.id}, version={self.version}, url={self.url}, created_at={self.created_at}, " \
+               f"is_active={self.is_active}, activated_at={self.activated_at}, deactivated_at={self.deactivated_at})>"
+
+
+class PrivacyPolicy(Base):
+    __tablename__ = "privacy_policies"
+
+    id = Column(Integer, primary_key=True)
+    version = Column(String(10), nullable=False)
+    url = Column(String(256), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=False, index=True)
+    activated_at = Column(DateTime, nullable=True)
+    activated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    deactivated_at = Column(DateTime, nullable=True)
+    deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # relationships
+    users = relationship("User", back_populates="accepted_privacy_policy")
+
+
+    def __repr__(self):
+        return f"<PrivacyPolicies(id={self.id}, version={self.version}, url={self.url}, created_at={self.created_at}, " \
+               f"is_active={self.is_active}, activated_at={self.activated_at}, deactivated_at={self.deactivated_at})>"
 
 
 class Word(Base):

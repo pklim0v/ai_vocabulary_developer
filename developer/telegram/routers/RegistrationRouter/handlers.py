@@ -69,7 +69,7 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
     async def eula_privacy_confirmation(callback_query: types.CallbackQuery, state: FSMContext, t, k):
         # getting user's data from state
         state_data = await state.get_data()
-        user_data = state_data.get("user_data")
+        user_data = state_data.get("user_data", {})
 
         # getting selected locale
         locale = callback_query.data.split("_")[1]
@@ -77,7 +77,9 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         if locale == 'system':
             locale = callback_query.from_user.language_code
 
-        user_data["language_code"] = locale
+        # saving the locale in the user_data
+        new_user_data = {**user_data, "language_code": locale}
+        await state.update_data(user_data=new_user_data)
 
         # answering the callback query
         await bot.answer_callback_query(callback_query.id)
@@ -98,10 +100,10 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         await bot.send_message(
             callback_query.from_user.id,
             text=t('messages.registration.terms_of_service',
-                   eula_url=Config.TERMS_OF_USE[user_data["language_code"]]["eula"],
-                   privacy_url=Config.TERMS_OF_USE[user_data["language_code"]]["privacy"],
-                   locale=user_data["language_code"]),
-            reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false', locale=user_data["language_code"]),
+                   eula_url=Config.TERMS_OF_USE[new_user_data["language_code"]]["eula"],
+                   privacy_url=Config.TERMS_OF_USE[new_user_data["language_code"]]["privacy"],
+                   locale=new_user_data["language_code"]),
+            reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false', locale=new_user_data["language_code"]),
             parse_mode="MarkdownV2",
             disable_web_page_preview=True
         )
@@ -111,8 +113,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         async def terms_confirmation(callback_query: types.CallbackQuery, state: FSMContext, t, k):
             # getting user's data from state
             state_data = await state.get_data()
-            user_data = state_data.get("user_data")
-            terms_control = state_data.get("terms_control")
+            user_data = state_data.get("user_data", {})
+            terms_control = state_data.get("terms_control", {})
 
             # answering the callback query
             await bot.answer_callback_query(callback_query.id)
@@ -126,8 +128,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                     logger.error("EULA has been confirmed twice")
 
                 # updating the terms control
-                terms_control['eula'] = True
-                # await state.update_data(terms_control=terms_control)
+                new_terms_control = {**terms_control, 'eula': True}
+                await state.update_data(terms_control=new_terms_control)
 
                 # refreshing the keyboard
                 if not terms_control['privacy']:
@@ -146,8 +148,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                     logger.error("Privacy policy has been confirmed twice")
 
                 # updating the terms control
-                terms_control['privacy'] = True
-                # await state.update_data(terms_control=terms_control)
+                new_terms_control = {**terms_control, 'privacy': True}
+                await state.update_data(terms_control=new_terms_control)
 
                 # refreshing the keyboard
                 if terms_control['eula']:
@@ -166,8 +168,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                     logger.error("EULA has been rejected twice")
 
                 # updating the terms control
-                terms_control['eula'] = False
-                # await state.update_data(terms_control=terms_control)
+                new_terms_control = {**terms_control, 'eula': False}
+                await state.update_data(terms_control=new_terms_control)
 
                 # refreshing the keyboard
                 if terms_control['privacy']:
@@ -186,8 +188,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                     logger.error("Privacy policy has been rejected twice")
 
                 # updating the terms control
-                terms_control['privacy'] = False
-                # await state.update_data(terms_control=terms_control)
+                new_terms_control = {**terms_control, 'privacy': False}
+                await state.update_data(terms_control=new_terms_control)
 
                 # refreshing the keyboard
                 if terms_control['eula']:
@@ -206,7 +208,11 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                     logger.error("Terms of service have not been accepted")
 
                 # remove terms control from the state
-                await state.update_data(terms_control=None)
+                state_data = await state.get_data()
+                new_user_data = {**user_data, "agreed_to_terms_of_service": True}
+                cleared_state_data = {k: v for k, v in state_data.items() if k != "terms_control"}
+                new_state_data = {**cleared_state_data, "user_data": new_user_data}
+                await state.set_data(new_state_data)
 
                 # deleting the keyboard
                 await callback_query.message.edit_reply_markup(reply_markup=None)
