@@ -1,7 +1,22 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Float, Table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql.schema import UniqueConstraint
+
 from .session import Base
+
+
+# table for many-to-many relations of users learing languages and learning languages
+user_learning_languages = Table(
+    'user_learning_languages',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('language_id', Integer, ForeignKey('languages.id'), primary_key=True),
+    Column('started_learning_at', DateTime, server_default=func.now(), nullable=False),
+    Column('finished_learning_at', DateTime, nullable=True),
+    Column('is_active', Boolean, nullable=False, default=False),
+)
+
 
 class User(Base):
     __tablename__ = "users"
@@ -10,7 +25,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     telegram_id = Column(Integer, unique=True, nullable=False, index=True)
     username = Column(String(32), nullable=False)
-    language_code = Column(String(10), nullable=False, default="en")
+    # language_code = Column(String(10), nullable=False, default="en")
+    interface_language_id = Column(Integer, ForeignKey("languages.id"))
     time_format = Column(Integer, nullable=False, default=24)
     timezone = Column(String(256), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -50,6 +66,7 @@ class User(Base):
     tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")
     words = relationship("Word", back_populates="user", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
+    languages = relationship("Language", back_populates="users")
 
     # relationships with user agreements and privacy policies
     accepted_agreement = relationship("UserAgreement", foreign_keys="User.accepted_agreement_id", post_update=True)
@@ -61,17 +78,65 @@ class User(Base):
     deactivated_agreement = relationship("UserAgreement", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_by")
     deactivated_privacy_policy = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_by")
 
+    # property for receiving language_code
+    # many-to-one
+    interface_language = relationship("Language", back_populates="interface_users")
 
+    @property
+    def language_code(self):
+        return self.interface_language.code if self.interface_language else "en"
+
+    # relationship for studying languages
+    # many-to-many
+    learning_languages = relationship(
+        "Language",
+        secondary=user_learning_languages,
+        back_populates="learning_users",
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, name={self.username}, telegram_id={self.telegram_id})>"
 
 
+class Language(Base):
+    __tablename__ = "languages"
+
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(32), nullable=False, unique=True)
+    code = Column(String(10), nullable=False, unique=True)
+    is_interface_language = Column(Boolean, nullable=False, default=False)
+    flag_code = Column(String(10), nullable=True, unique=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # relationships for interface language
+    # one-to-many
+    interface_users = relationship("User", back_populates="interface_language")
+
+    # relationships for studying languages
+    # many-to-many
+    leaning_users = relationship(
+        "User",
+        secondary=user_learning_languages,
+        back_populates="leaning_languages"
+    )
+
+    def __repr__(self):
+        return f"<Language(id={self.id}, name={self.name}, code={self.code})>"
+
+
+
+
 class UserAgreement(Base):
     __tablename__ = "user_agreements"
 
+    __table_args__ = (
+        UniqueConstraint('version', 'language_code', name='unique_agreement_version_language_code'),
+    )
+
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
+    language_code = Column(String(10), nullable=False, default="en")
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
@@ -95,8 +160,13 @@ class UserAgreement(Base):
 class PrivacyPolicy(Base):
     __tablename__ = "privacy_policies"
 
+    __table_args__ = (
+        UniqueConstraint('version', 'language_code', name='unique_privacy_policy_version_language_code'),
+    )
+
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
+    language_code = Column(String(10), nullable=False, default="en")
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
