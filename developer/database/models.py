@@ -164,7 +164,8 @@ class LanguageTranslation(Base):
     __tablename__ = "language_translations"
 
     __table_args__ = (
-        UniqueConstraint('language_id', 'locale_id', 'name', name='unique_language_translation_language_id_locale_id'),
+        UniqueConstraint('language_id', 'locale_id', name='unique_language_translation_language_id_locale_id'),
+        UniqueConstraint('language_id', 'name', name='unique_language_translation_language_id_name'),
     )
 
     id = Column(Integer, primary_key=True)
