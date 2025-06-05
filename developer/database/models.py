@@ -6,7 +6,7 @@ from sqlalchemy.sql.schema import UniqueConstraint
 from .session import Base
 
 
-# table for many-to-many relations of users learing languages and learning languages
+# table for many-to-many relations of users learning languages and learning languages
 user_learning_languages = Table(
     'user_learning_languages',
     Base.metadata,
@@ -101,13 +101,17 @@ class User(Base):
 class Language(Base):
     __tablename__ = "languages"
 
-
     id = Column(Integer, primary_key=True)
     name = Column(String(32), nullable=False, unique=True)
+    locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True)
     code = Column(String(10), nullable=False, unique=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
     flag_code = Column(String(10), nullable=True, unique=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    #self-referential relationships for language.name localizations
+    locale = relationship("Language", remote_side=[id], back_populates="localizations")
+    localizations = relationship("Language", back_populates="locale")
 
     # relationships for interface language
     # one-to-many
@@ -120,6 +124,11 @@ class Language(Base):
         secondary=user_learning_languages,
         back_populates="leaning_languages"
     )
+
+    # relationships for user agreements and privacy policies
+    # one-to-many
+    agreements = relationship("UserAgreement", back_populates="agreement_language")
+    privacy_policies = relationship("PrivacyPolicy", back_populates="policy_language")
 
     def __repr__(self):
         return f"<Language(id={self.id}, name={self.name}, code={self.code})>"
@@ -136,7 +145,7 @@ class UserAgreement(Base):
 
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
-    language_code = Column(String(10), nullable=False, default="en")
+    agreement_language_id = Column(Integer, ForeignKey('languages.id'))
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
@@ -152,6 +161,15 @@ class UserAgreement(Base):
     # users who accepted the agreement
     users = relationship("User", foreign_keys="User.accepted_agreement_id", back_populates="accepted_agreement")
 
+    # localization relationship
+    # many-to-one
+    agreement_language = relationship("Language", back_populates="agreements")
+
+    # property for receiving language_code
+    @property
+    def language_code(self):
+        return self.agreement_language.code if self.agreement_language else "en"
+
     def __repr(self):
         return f"<UserAgreements(id={self.id}, version={self.version}, url={self.url}, created_at={self.created_at}, " \
                f"is_active={self.is_active}, activated_at={self.activated_at}, deactivated_at={self.deactivated_at})>"
@@ -166,7 +184,7 @@ class PrivacyPolicy(Base):
 
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
-    language_code = Column(String(10), nullable=False, default="en")
+    policy_language_id = Column(Integer, ForeignKey('languages.id'))
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
@@ -181,6 +199,15 @@ class PrivacyPolicy(Base):
 
     # users who accepted the privacy policy
     users = relationship("User", foreign_keys="User.accepted_privacy_policy_id", back_populates="accepted_privacy_policy")
+
+    # relationship for localization
+    # many-to-one
+    policy_language = relationship("Language", back_populates="privacy_policies")
+
+    # property for receiving language_code
+    @property
+    def language_code(self):
+        return self.policy_language.code if self.policy_language else "en"
 
 
     def __repr__(self):
