@@ -101,7 +101,9 @@ class Language(Base):
     __tablename__ = "languages"
 
     __table_args__ = (
-        UniqueConstraint('code', 'locale_id', name='unique_language_code_locale_id')
+        UniqueConstraint('code', 'locale_id', name='unique_language_code_locale_id'),
+        UniqueConstraint('name', 'locale_id', name='unique_language_name_locale_id'),
+        UniqueConstraint('flag_code', 'code', name='unique_language_flag_code_code')
     )
 
     id = Column(Integer, primary_key=True)
@@ -109,7 +111,7 @@ class Language(Base):
     locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True, index=True)
     code = Column(String(10), nullable=False, unique=True, index=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
-    flag_code = Column(String(10), nullable=True, unique=True)
+    flag_code = Column(String(10), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     #self-referential relationships for language.name localizations
@@ -182,7 +184,7 @@ class PrivacyPolicy(Base):
     __tablename__ = "privacy_policies"
 
     __table_args__ = (
-        UniqueConstraint('version', 'agreement_language_id', name='unique_privacy_policy_version_language_code'),
+        UniqueConstraint('version', 'policy_language_id', name='unique_privacy_policy_version_language_code'),
     )
 
     id = Column(Integer, primary_key=True)
