@@ -93,6 +93,17 @@ class User(Base):
         back_populates="learning_users",
     )
 
+    # receiving interface language name in the current locale
+    def get_interface_language_name(self, locale_code: str = "en") -> str:
+        if not self.interface_language:
+            return "Unknown"
+
+        if locale_code is None:
+            locale_code = self.language_code
+
+        return self.interface_language.get_name(locale_code)
+
+
     def __repr__(self):
         return f"<User(id={self.id}, name={self.username}, telegram_id={self.telegram_id})>"
 
@@ -100,24 +111,11 @@ class User(Base):
 class Language(Base):
     __tablename__ = "languages"
 
-    __table_args__ = (
-        UniqueConstraint('code', 'locale_id', name='unique_language_code_locale_id'),
-        UniqueConstraint('name', 'locale_id', name='unique_language_name_locale_id'),
-        UniqueConstraint('name', 'code', name='unique_language_name_code'),
-        UniqueConstraint('flag_code', 'code', name='unique_language_flag_code_code')
-    )
-
     id = Column(Integer, primary_key=True)
-    name = Column(String(32), nullable=False)
-    locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True, index=True)
     code = Column(String(10), nullable=False, unique=True, index=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
-    flag_code = Column(String(10), nullable=True)
+    flag_code = Column(String(10), nullable=True, unique=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
-
-    #self-referential relationships for language.name localizations
-    locale = relationship("Language", remote_side=[id], back_populates="localizations")
-    localizations = relationship("Language", back_populates="locale")
 
     # relationships for interface language
     # one-to-many
@@ -136,17 +134,68 @@ class Language(Base):
     agreements = relationship("UserAgreement", back_populates="agreement_language")
     privacy_policies = relationship("PrivacyPolicy", back_populates="policy_language")
 
+    # relationship for localization
+    # one-to-many
+    translations = relationship("LanguageTranslation", back_populates="language", cascade="all, delete-orphan")
+
+    # getting language name in the current locale
+    def get_name(self, locale_code: str = "en") -> str:
+        for translation in self.translations:
+            if translation.locale and translation.locale.code == locale_code:
+                return translation.name
+
+        # Fallback to English and then first available translation
+        for translation in self.translations:
+            if translation.locale and translation.locale.code == "en":
+                return translation.name
+
+        if self.translations:
+            return self.translations[0].name
+
+        return self.code.upper() # last Fallback
+
+
     def __repr__(self):
         return f"<Language(id={self.id}, name={self.name}, code={self.code})>"
 
 
+
+class LanguageTranslation(Base):
+    __tablename__ = "language_translations"
+
+    __table_args__ = (
+        UniqueConstraint('language_id', 'locale_id', 'name', name='unique_language_translation_language_id_locale_id'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    language_id = Column(Integer, ForeignKey("languages.id"), nullable=False, index=True)
+    locale_id = Column(Integer, ForeignKey("languages.id"), nullable=False, index=True)
+    name = Column(String(32), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    # relationships for localization
+    # many-to-one
+    language = relationship("Language", foreign_keys=[language_id], back_populates="translations")
+    locale = relationship("Language", foreign_keys=[locale_id])
+
+    # localization code for backward compatibility
+    @property
+    def locale_code(self):
+        return self.locale.code if self.locale else "en"
+
+    def __repr__(self):
+        return (f"<LanguageTranslation(id={self.id},"
+                f" language_id={self.language_id},"
+                f" locale_id={self.locale_id},"
+                f" name={self.name},"
+                f" created_at={self.created_at})>")
 
 
 class UserAgreement(Base):
     __tablename__ = "user_agreements"
 
     __table_args__ = (
-        UniqueConstraint('version', 'agreement_language_id', name='unique_agreement_version_language_code'),
+        UniqueConstraint('version', 'agreement_language_id', name='unique_agreement_version_language_id'),
     )
 
     id = Column(Integer, primary_key=True)
@@ -185,7 +234,7 @@ class PrivacyPolicy(Base):
     __tablename__ = "privacy_policies"
 
     __table_args__ = (
-        UniqueConstraint('version', 'policy_language_id', name='unique_privacy_policy_version_language_code'),
+        UniqueConstraint('version', 'policy_language_id', name='unique_privacy_policy_version_language_id'),
     )
 
     id = Column(Integer, primary_key=True)

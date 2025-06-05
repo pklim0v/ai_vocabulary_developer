@@ -42,7 +42,7 @@ class DevelopmentConfig(Config):
     DEBUG = True
     TESTING = False
     LOG_LEVEL = 'DEBUG'
-    DATABASE_URI=f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database_dev.sql'
+    DATABASE_URI=f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database_dev.sql?charset=utf8mb4'
 
     # telegram bot configuration
     POLLING_TIMEOUT = 10
@@ -52,7 +52,7 @@ class TestingConfig(Config):
     TESTING = True
     DEBUG = True
     LOG_LEVEL = 'DEBUG'
-    DATABASE_URI=f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database_test.sql'
+    DATABASE_URI=f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database_test.sql?charset=utf8mb4'
 
     # telegram bot configuration
     POLLING_TIMEOUT = 1
@@ -61,7 +61,7 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     LOG_LEVEL = 'INFO'
-    DATABASE_URI=os.environ.get('DATABASE_URI') or f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database.sql'
+    DATABASE_URI=os.environ.get('DATABASE_URI') or f'sqlite+aiosqlite:///{BASE_DIR}/developer/database/database.sql?charset=utf8mb4'
 
     #telegram bot configuration
     POLLING_TIMEOUT = 30

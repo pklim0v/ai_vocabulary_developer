@@ -147,7 +147,7 @@ async def initialize_database():
     logger.info("Checking migration status")
     migrations_ok = await db_manager.check_migration_status()
     if not migrations_ok:
-        if Config.__class.__name__ == 'ProductionConfig':
+        if Config.__class__.__name__ == 'ProductionConfig':
             raise RuntimeError("Database is not up to date. Please run 'alembic upgrade head' to upgrade the database.")
         else:
             logger.warning("Database is not up to date. Please run 'alembic upgrade head' to upgrade the database.")
