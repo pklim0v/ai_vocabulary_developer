@@ -114,7 +114,7 @@ class Language(Base):
     id = Column(Integer, primary_key=True)
     code = Column(String(10), nullable=False, unique=True, index=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
-    flag_code = Column(String(10), nullable=True, unique=True)
+    flag_code = Column(String(10), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     # relationships for interface language
