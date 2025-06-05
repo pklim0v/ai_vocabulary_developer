@@ -3,7 +3,7 @@ from sqlalchemy import select
 from developer.database.models import UserAgreement
 from typing import Optional
 
-class AgreementService:
+class UserAgreementService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 

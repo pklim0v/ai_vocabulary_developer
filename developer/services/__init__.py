@@ -1,4 +1,6 @@
 from .user_service import UserService
-from .agreement_service import AgreementService
+from .user_agreement_service import UserAgreementService
+from .language_service import LanguageService
+from .privacy_policy_service import PrivacyPolicyService
 
-__all__ = ["UserService", "AgreementService"]
+__all__ = ["UserService", "UserAgreementService", "LanguageService", "PrivacyPolicyService"]
