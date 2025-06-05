@@ -103,11 +103,12 @@ class Language(Base):
     __table_args__ = (
         UniqueConstraint('code', 'locale_id', name='unique_language_code_locale_id'),
         UniqueConstraint('name', 'locale_id', name='unique_language_name_locale_id'),
+        UniqueConstraint('name', 'code', name='unique_language_name_code'),
         UniqueConstraint('flag_code', 'code', name='unique_language_flag_code_code')
     )
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(32), nullable=False, unique=True)
+    name = Column(String(32), nullable=False)
     locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True, index=True)
     code = Column(String(10), nullable=False, unique=True, index=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
@@ -175,7 +176,7 @@ class UserAgreement(Base):
     def language_code(self):
         return self.agreement_language.code if self.agreement_language else "en"
 
-    def __repr(self):
+    def __repr__(self):
         return f"<UserAgreements(id={self.id}, version={self.version}, url={self.url}, created_at={self.created_at}, " \
                f"is_active={self.is_active}, activated_at={self.activated_at}, deactivated_at={self.deactivated_at})>"
 
