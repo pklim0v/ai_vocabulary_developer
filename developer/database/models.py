@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Float, Table
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql.schema import UniqueConstraint
+from sqlalchemy.sql.schema import UniqueConstraint, Index
 
 from .session import Base
 
@@ -26,7 +26,7 @@ class User(Base):
     telegram_id = Column(Integer, unique=True, nullable=False, index=True)
     username = Column(String(32), nullable=False)
     # language_code = Column(String(10), nullable=False, default="en")
-    interface_language_id = Column(Integer, ForeignKey("languages.id"))
+    interface_language_id = Column(Integer, ForeignKey("languages.id"), nullable=False)
     time_format = Column(Integer, nullable=False, default=24)
     timezone = Column(String(256), nullable=False, default="UTC")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -66,17 +66,16 @@ class User(Base):
     tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")
     words = relationship("Word", back_populates="user", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="user", cascade="all, delete-orphan")
-    languages = relationship("Language", back_populates="users")
 
     # relationships with user agreements and privacy policies
     accepted_agreement = relationship("UserAgreement", foreign_keys="User.accepted_agreement_id", post_update=True)
     accepted_privacy_policy = relationship("PrivacyPolicy", foreign_keys="User.accepted_privacy_policy_id", post_update=True)
 
     # relationships for agreements and privacy policies administration
-    activated_agreement = relationship("UserAgreement", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_by")
-    activated_privacy_policy = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_by")
-    deactivated_agreement = relationship("UserAgreement", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_by")
-    deactivated_privacy_policy = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_by")
+    activated_agreements = relationship("UserAgreement", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_by")
+    activated_privacy_policies = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_by")
+    deactivated_agreements = relationship("UserAgreement", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_by")
+    deactivated_privacy_policies = relationship("PrivacyPolicy", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_by")
 
     # property for receiving language_code
     # many-to-one
@@ -101,10 +100,14 @@ class User(Base):
 class Language(Base):
     __tablename__ = "languages"
 
+    __table_args__ = (
+        UniqueConstraint('code', 'locale_id', name='unique_language_code_locale_id')
+    )
+
     id = Column(Integer, primary_key=True)
     name = Column(String(32), nullable=False, unique=True)
-    locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True)
-    code = Column(String(10), nullable=False, unique=True)
+    locale_id = Column(Integer, ForeignKey("languages.id"), nullable=True, index=True)
+    code = Column(String(10), nullable=False, unique=True, index=True)
     is_interface_language = Column(Boolean, nullable=False, default=False)
     flag_code = Column(String(10), nullable=True, unique=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -119,10 +122,10 @@ class Language(Base):
 
     # relationships for studying languages
     # many-to-many
-    leaning_users = relationship(
+    learning_users = relationship(
         "User",
         secondary=user_learning_languages,
-        back_populates="leaning_languages"
+        back_populates="learning_languages"
     )
 
     # relationships for user agreements and privacy policies
@@ -140,12 +143,12 @@ class UserAgreement(Base):
     __tablename__ = "user_agreements"
 
     __table_args__ = (
-        UniqueConstraint('version', 'language_code', name='unique_agreement_version_language_code'),
+        UniqueConstraint('version', 'agreement_language_id', name='unique_agreement_version_language_code'),
     )
 
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
-    agreement_language_id = Column(Integer, ForeignKey('languages.id'))
+    agreement_language_id = Column(Integer, ForeignKey('languages.id'), nullable=False, index=True)
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
@@ -155,8 +158,8 @@ class UserAgreement(Base):
     deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # relationships for administration
-    activated_by = relationship("User", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_agreement")
-    deactivated_by = relationship("User", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_agreement")
+    activated_by = relationship("User", foreign_keys="UserAgreement.activated_by_id", back_populates="activated_agreements")
+    deactivated_by = relationship("User", foreign_keys="UserAgreement.deactivated_by_id", back_populates="deactivated_agreements")
 
     # users who accepted the agreement
     users = relationship("User", foreign_keys="User.accepted_agreement_id", back_populates="accepted_agreement")
@@ -179,12 +182,12 @@ class PrivacyPolicy(Base):
     __tablename__ = "privacy_policies"
 
     __table_args__ = (
-        UniqueConstraint('version', 'language_code', name='unique_privacy_policy_version_language_code'),
+        UniqueConstraint('version', 'agreement_language_id', name='unique_privacy_policy_version_language_code'),
     )
 
     id = Column(Integer, primary_key=True)
     version = Column(String(10), nullable=False)
-    policy_language_id = Column(Integer, ForeignKey('languages.id'))
+    policy_language_id = Column(Integer, ForeignKey('languages.id'), nullable=False, index=True)
     url = Column(String(256), nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
@@ -194,8 +197,8 @@ class PrivacyPolicy(Base):
     deactivated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # relationships for administration
-    activated_by = relationship("User", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_privacy_policy")
-    deactivated_by = relationship("User", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_privacy_policy")
+    activated_by = relationship("User", foreign_keys="PrivacyPolicy.activated_by_id", back_populates="activated_privacy_policies")
+    deactivated_by = relationship("User", foreign_keys="PrivacyPolicy.deactivated_by_id", back_populates="deactivated_privacy_policies")
 
     # users who accepted the privacy policy
     users = relationship("User", foreign_keys="User.accepted_privacy_policy_id", back_populates="accepted_privacy_policy")
