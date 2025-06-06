@@ -24,7 +24,7 @@ class KeyboardGenerator:
 
     def _get_ru_keyboard_generator(self) -> Dict[str, callable]:
         return {
-            'generate_language_selection_keyboard': ru_keyboards.generate_language_selection_keyboard,
+            # 'generate_language_selection_keyboard': ru_keyboards.generate_language_selection_keyboard,
         }
 
     def get_keyboard(self, key: str, locale: str, context: Dict[str, Any]) -> Optional[InlineKeyboardMarkup]:

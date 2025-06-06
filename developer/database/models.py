@@ -136,7 +136,10 @@ class Language(Base):
 
     # relationship for localization
     # one-to-many
-    translations = relationship("LanguageTranslation", back_populates="language", cascade="all, delete-orphan")
+    translations = relationship("LanguageTranslation",
+                                foreign_keys="LanguageTranslation.language_id",
+                                back_populates="language",
+                                cascade="all, delete-orphan")
 
     # getting language name in the current locale
     def get_name(self, locale_code: str = "en") -> str:
@@ -176,8 +179,12 @@ class LanguageTranslation(Base):
 
     # relationships for localization
     # many-to-one
-    language = relationship("Language", foreign_keys=[language_id], back_populates="translations")
-    locale = relationship("Language", foreign_keys=[locale_id])
+    language = relationship("Language",
+                            foreign_keys=[language_id],
+                            back_populates="translations")
+
+    locale = relationship("Language",
+                          foreign_keys=[locale_id])
 
     # localization code for backward compatibility
     @property

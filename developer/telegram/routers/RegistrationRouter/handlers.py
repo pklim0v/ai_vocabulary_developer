@@ -3,8 +3,9 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from developer.telegram.common.decorators import with_localization, with_localization_and_state
-from developer.services import UserService
+from developer.services import UserService, LanguageService, UserAgreementService, PrivacyPolicyService
 from developer.database.session import db_manager
+from developer.telegram.common.validators import Validator
 from config import get_config
 import logging
 
@@ -16,8 +17,8 @@ class RegistrationState(StatesGroup):
     InterfaceLanguageSelect = State()
     ConfirmUsageTerms = State()
     GetUsername = State()
-    SelectTimeFormat = State()
     GetTimezone = State()
+    SelectTimeFormat = State()
     GetConfirmationReceiveWords = State()
     GetConfirmationShareWords = State()
     GetConfirmationShareContact = State()
@@ -50,7 +51,23 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         current_locale = callback_query.from_user.language_code
 
         # getting keyboard context
-        keyboard_context = Config.BASIC_KEYBOARD_CONTEXT
+        async with db_manager.get_session() as session:
+            language_service = LanguageService(session)
+            interface_languages = await language_service.get_interface_languages()
+
+        ### creating language buttons out of interface_languages
+        language_buttons = {}
+        for interface_language in interface_languages:
+            language_button = {
+                interface_language.code: {'label': f'{interface_language.flag_code} {interface_language.get_name(interface_language.code)}'}
+            }
+            language_buttons.update(language_button)
+
+        keyboard_context = {
+            'callback_base': 'locale-selection',
+            'buttons_in_a_row': 2,
+            'buttons': language_buttons
+        }
 
         # sending the language selection message
         await bot.send_message(
@@ -74,12 +91,8 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         # getting selected locale
         locale = callback_query.data.split("_")[1]
 
-        if locale == 'system':
-            locale = callback_query.from_user.language_code
-
         # saving the locale in the user_data
         new_user_data = {**user_data, "language_code": locale}
-        await state.update_data(user_data=new_user_data)
 
         # answering the callback query
         await bot.answer_callback_query(callback_query.id)
@@ -96,12 +109,25 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         # storing the terms control in the state
         await state.update_data(terms_control=terms_control)
 
+        # fetching active user_agreement and privacy_policy
+        async with db_manager.get_session() as session:
+            user_agreement_service = UserAgreementService(session)
+            privacy_policy_service = PrivacyPolicyService(session)
+            active_user_agreement = await user_agreement_service.get_active_agreement(new_user_data["language_code"])
+            active_privacy_policy = await privacy_policy_service.get_active_policy(new_user_data["language_code"])
+
+        # saving the active user_agreement and privacy_policy in the user_data
+        new_user_data = {**new_user_data, "user_agreement": active_user_agreement, "privacy_policy": active_privacy_policy}
+
+        # store new user_data in the state
+        await state.update_data(user_data=new_user_data)
+
         # sending the terms of service message
         await bot.send_message(
             callback_query.from_user.id,
             text=t('messages.registration.terms_of_service',
-                   eula_url=Config.TERMS_OF_USE[new_user_data["language_code"]]["eula"],
-                   privacy_url=Config.TERMS_OF_USE[new_user_data["language_code"]]["privacy"],
+                   eula_url=active_user_agreement.url,
+                   privacy_url=active_privacy_policy.url,
                    locale=new_user_data["language_code"]),
             reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false', locale=new_user_data["language_code"]),
             parse_mode="MarkdownV2",
@@ -217,8 +243,46 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
                 # deleting the keyboard
                 await callback_query.message.edit_reply_markup(reply_markup=None)
 
-                await bot.send_message(callback_query.from_user.id, text='ha-ha')
+                # switching state
+                await state.set_state(RegistrationState.GetUsername)
 
+                # sending the username request message
+                await bot.send_message(callback_query.from_user.id,
+                                       text=t('messages.registration.username_request', locale=new_user_data["language_code"]),
+                                       parse_mode="MarkdownV2"
+                                       )
             else:
                 logger.error("Unknown terms confirmation")
 
+
+    @router.message(RegistrationState.GetUsername)
+    @with_localization_and_state
+    async def username_request(message: types.Message, state: FSMContext, t, k):
+        # getting user's data from state
+        state_data = await state.get_data()
+        user_data = state_data.get("user_data", {})
+
+        # getting username from the message
+        received_username = Validator.validate_username(message.text)
+
+        if not received_username:
+            logger.error("Invalid username")
+            await message.answer(text=t('messages.registration.incorrect_username', locale=user_data["language_code"]),
+                                 parse_mode="MarkdownV2")
+            return
+
+        # saving the username in the user_data
+        new_user_data = {**user_data, "username": received_username}
+
+        # storing the new user_data in the state
+        await state.update_data(user_data=new_user_data)
+
+        # setting next state
+        await state.set_state(RegistrationState.GetTimezone)
+        await message.answer(
+            text=t('messages.registration.get_users_timezone.initial_message',
+                   username=new_user_data["username"],
+                   locale=new_user_data["language_code"]),
+            reply_markup=k('keyboards.get_users_timezone.initial_keyboard', locale=new_user_data["language_code"]),
+            parse_mode="MarkdownV2"
+        )

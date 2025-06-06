@@ -13,29 +13,9 @@ class Config:
     # localization
     DEFAULT_LANGUAGE = 'en'
     SUPPORTED_LANGUAGES = ['en', 'ru']
-    BASIC_KEYBOARD_CONTEXT = {
-            'callback_base': 'locale-selection',
-            'buttons_in_a_row': 2,
-            'buttons': {
-                'en': {'label': '🇬🇧English'},
-                'ru': {'label': '🇷🇺Русский'}
-            }
-        }
 
     # admin functions
     INITIAL_ADMINS = os.environ.get('INITIAL_ADMINS', '').split(',')
-
-    # terms of use
-    TERMS_OF_USE = {
-        'en': {
-            'eula': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20',
-            'privacy': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20'
-        },
-        'ru': {
-            'eula': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20',
-            'privacy': 'https://telegra.ph/Polzovatelskoe-soglashenie-05-30-20'
-        }
-    }
 
 
 class DevelopmentConfig(Config):
