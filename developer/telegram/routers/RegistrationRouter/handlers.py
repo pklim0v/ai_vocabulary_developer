@@ -1,5 +1,6 @@
 from aiogram import types, Router, Bot
 from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from developer.telegram.common.decorators import with_localization, with_localization_and_state
@@ -28,6 +29,8 @@ class RegistrationState(StatesGroup):
 
 
 async def setup_handlers(router: Router, bot: Bot) -> None:
+
+    # registration start handler, requesting the user's language'
     @router.callback_query(lambda c: c.data == "register")
     @with_localization_and_state
     async def registration_start(callback_query: types.CallbackQuery, state: FSMContext, t, k):
@@ -81,6 +84,7 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         await state.set_state(RegistrationState.ConfirmUsageTerms)
 
 
+    # language selection handler, requesting confirmation of EULA and privacy policy
     @router.callback_query(lambda c: c.data.startswith("locale-selection_"), RegistrationState.ConfirmUsageTerms)
     @with_localization_and_state
     async def eula_privacy_confirmation(callback_query: types.CallbackQuery, state: FSMContext, t, k):
@@ -134,127 +138,130 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
             disable_web_page_preview=True
         )
 
-        @router.callback_query(lambda c: c.data.startswith("terms_"), RegistrationState.ConfirmUsageTerms)
-        @with_localization_and_state
-        async def terms_confirmation(callback_query: types.CallbackQuery, state: FSMContext, t, k):
-            # getting user's data from state
+
+    # terms confirmation handler, requesting confirmation of terms, and then requesting the username
+    @router.callback_query(lambda c: c.data.startswith("terms_"), RegistrationState.ConfirmUsageTerms)
+    @with_localization_and_state
+    async def terms_confirmation(callback_query: types.CallbackQuery, state: FSMContext, t, k):
+        # getting user's data from state
+        state_data = await state.get_data()
+        user_data = state_data.get("user_data", {})
+        terms_control = state_data.get("terms_control", {})
+
+        # answering the callback query
+        await bot.answer_callback_query(callback_query.id)
+
+        # getting selected terms
+        terms = callback_query.data.split("_")[1]
+
+        if terms == 'eula-true':
+            # checking the consistency of the terms control
+            if terms_control['eula']:
+                logger.error("EULA has been confirmed twice")
+
+            # updating the terms control
+            new_terms_control = {**terms_control, 'eula': True}
+            await state.update_data(terms_control=new_terms_control)
+
+            # refreshing the keyboard
+            if not terms_control['privacy']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_true_privacy_false',
+                                   locale=user_data["language_code"]))
+
+            elif terms_control['privacy']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_true_privacy_true',
+                                   locale=user_data["language_code"]))
+
+        elif terms == 'privacy-true':
+            # checking the consistency of the terms control
+            if terms_control['privacy']:
+                logger.error("Privacy policy has been confirmed twice")
+
+            # updating the terms control
+            new_terms_control = {**terms_control, 'privacy': True}
+            await state.update_data(terms_control=new_terms_control)
+
+            # refreshing the keyboard
+            if terms_control['eula']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_true_privacy_true',
+                                   locale=user_data["language_code"]))
+
+            elif not terms_control['eula']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_false_privacy_true',
+                                   locale=user_data["language_code"]))
+
+        elif terms == 'eula-false':
+            # checking the consistency of the terms control
+            if not terms_control['eula']:
+                logger.error("EULA has been rejected twice")
+
+            # updating the terms control
+            new_terms_control = {**terms_control, 'eula': False}
+            await state.update_data(terms_control=new_terms_control)
+
+            # refreshing the keyboard
+            if terms_control['privacy']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_false_privacy_true',
+                                   locale=user_data["language_code"]))
+
+            elif not terms_control['privacy']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false',
+                                   locale=user_data["language_code"]))
+
+        elif terms == 'privacy-false':
+            # checking the consistency of the terms control
+            if not terms_control['privacy']:
+                logger.error("Privacy policy has been rejected twice")
+
+            # updating the terms control
+            new_terms_control = {**terms_control, 'privacy': False}
+            await state.update_data(terms_control=new_terms_control)
+
+            # refreshing the keyboard
+            if terms_control['eula']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_true_privacy_false',
+                                   locale=user_data["language_code"]))
+
+            elif not terms_control['eula']:
+                await callback_query.message.edit_reply_markup(
+                    reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false',
+                                   locale=user_data["language_code"]))
+
+        elif terms == 'proceed':
+            # checking the consistency of the terms control
+            if not terms_control['eula'] or not terms_control['privacy']:
+                logger.error("Terms of service have not been accepted")
+
+            # remove terms control from the state
             state_data = await state.get_data()
-            user_data = state_data.get("user_data", {})
-            terms_control = state_data.get("terms_control", {})
+            new_user_data = {**user_data, "agreed_to_terms_of_service": True}
+            cleared_state_data = {k: v for k, v in state_data.items() if k != "terms_control"}
+            new_state_data = {**cleared_state_data, "user_data": new_user_data}
+            await state.set_data(new_state_data)
 
-            # answering the callback query
-            await bot.answer_callback_query(callback_query.id)
+            # deleting the keyboard
+            await callback_query.message.edit_reply_markup(reply_markup=None)
 
-            # getting selected terms
-            terms = callback_query.data.split("_")[1]
+            # switching state
+            await state.set_state(RegistrationState.GetUsername)
 
-            if terms == 'eula-true':
-                # checking the consistency of the terms control
-                if terms_control['eula']:
-                    logger.error("EULA has been confirmed twice")
-
-                # updating the terms control
-                new_terms_control = {**terms_control, 'eula': True}
-                await state.update_data(terms_control=new_terms_control)
-
-                # refreshing the keyboard
-                if not terms_control['privacy']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_true_privacy_false',
-                                       locale=user_data["language_code"]))
-
-                elif terms_control['privacy']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_true_privacy_true',
-                                       locale=user_data["language_code"]))
-
-            elif terms == 'privacy-true':
-                # checking the consistency of the terms control
-                if terms_control['privacy']:
-                    logger.error("Privacy policy has been confirmed twice")
-
-                # updating the terms control
-                new_terms_control = {**terms_control, 'privacy': True}
-                await state.update_data(terms_control=new_terms_control)
-
-                # refreshing the keyboard
-                if terms_control['eula']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_true_privacy_true',
-                                       locale=user_data["language_code"]))
-
-                elif not terms_control['eula']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_false_privacy_true',
-                                       locale=user_data["language_code"]))
-
-            elif terms == 'eula-false':
-                # checking the consistency of the terms control
-                if not terms_control['eula']:
-                    logger.error("EULA has been rejected twice")
-
-                # updating the terms control
-                new_terms_control = {**terms_control, 'eula': False}
-                await state.update_data(terms_control=new_terms_control)
-
-                # refreshing the keyboard
-                if terms_control['privacy']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_false_privacy_true',
-                                       locale=user_data["language_code"]))
-
-                elif not terms_control['privacy']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false',
-                                       locale=user_data["language_code"]))
-
-            elif terms == 'privacy-false':
-                # checking the consistency of the terms control
-                if not terms_control['privacy']:
-                    logger.error("Privacy policy has been rejected twice")
-
-                # updating the terms control
-                new_terms_control = {**terms_control, 'privacy': False}
-                await state.update_data(terms_control=new_terms_control)
-
-                # refreshing the keyboard
-                if terms_control['eula']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_true_privacy_false',
-                                       locale=user_data["language_code"]))
-
-                elif not terms_control['eula']:
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=k('keyboards.terms_of_service.eula_false_privacy_false',
-                                       locale=user_data["language_code"]))
-
-            elif terms == 'proceed':
-                # checking the consistency of the terms control
-                if not terms_control['eula'] or not terms_control['privacy']:
-                    logger.error("Terms of service have not been accepted")
-
-                # remove terms control from the state
-                state_data = await state.get_data()
-                new_user_data = {**user_data, "agreed_to_terms_of_service": True}
-                cleared_state_data = {k: v for k, v in state_data.items() if k != "terms_control"}
-                new_state_data = {**cleared_state_data, "user_data": new_user_data}
-                await state.set_data(new_state_data)
-
-                # deleting the keyboard
-                await callback_query.message.edit_reply_markup(reply_markup=None)
-
-                # switching state
-                await state.set_state(RegistrationState.GetUsername)
-
-                # sending the username request message
-                await bot.send_message(callback_query.from_user.id,
-                                       text=t('messages.registration.username_request', locale=new_user_data["language_code"]),
-                                       parse_mode="MarkdownV2"
-                                       )
-            else:
-                logger.error("Unknown terms confirmation")
+            # sending the username request message
+            await bot.send_message(callback_query.from_user.id,
+                                   text=t('messages.registration.username_request', locale=new_user_data["language_code"]),
+                                   parse_mode="MarkdownV2"
+                                   )
+        else:
+            logger.error("Unknown terms confirmation")
 
 
+    # processing the username, then requesting timezone receiving method
     @router.message(RegistrationState.GetUsername)
     @with_localization_and_state
     async def username_request(message: types.Message, state: FSMContext, t, k):
@@ -286,3 +293,51 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
             reply_markup=k('keyboards.get_users_timezone.initial_keyboard', locale=new_user_data["language_code"]),
             parse_mode="MarkdownV2"
         )
+
+
+    # processing the timezone receiving method
+    @router.callback_query(lambda c: c.data.startswith("timezone_"), RegistrationState.GetTimezone)
+    @with_localization_and_state
+    async def timezone_receiving_method(callback_query: types.CallbackQuery, state: FSMContext, t, k):
+        # getting user's data from state
+        state_data = await state.get_data()
+        user_data = state_data.get("user_data", {})
+
+        # answering the callback query
+        await bot.answer_callback_query(callback_query.id)
+
+        # deleting the keyboard
+        await callback_query.message.edit_reply_markup(reply_markup=None)
+
+        # getting timezone_receiving_method from the callback query
+        timezone = callback_query.data.split("_")[1]
+
+        # flow for different timezone_receiving_method
+        # 1. Sharing location
+        if timezone == 'share':
+            # creating request location keyboard
+            request_location_keyboard = ReplyKeyboardMarkup(
+                keyboard=[
+                    [
+                        KeyboardButton(text=t('keyboards.get_users_timezone.request_location.request_text',
+                                              locale=user_data["language_code"]),
+                                       request_location=True)
+                    ],
+                    [
+                        KeyboardButton(text=t('keyboards.get_users_timezone.request_location.cancel_text',
+                                              locale=user_data["language_code"]))
+                    ]
+                        ],
+
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+
+            # sending the request location message
+            await bot.send_message(
+                callback_query.from_user.id,
+                text=t('messages.registration.get_users_timezone.share_location', locale=user_data["language_code"]),
+                reply_markup=request_location_keyboard,
+                parse_mode="MarkdownV2"
+            )
+

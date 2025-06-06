@@ -1,6 +1,7 @@
 import asyncio
 from aiogram import types, Router, Bot
 from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardRemove
 from developer.telegram.common.decorators import with_localization
 from developer.services import UserService
 from developer.database.session import db_manager
@@ -22,7 +23,10 @@ async def setup_handlers(router: Router, bot: Bot) -> None:
         # user not registered
         if not current_user:
             current_locale = message.from_user.language_code
-            await message.answer(t('commands.start', locale=current_locale))
+            await message.answer(
+                t('commands.start', locale=current_locale),
+                reply_markup=ReplyKeyboardRemove()
+            )
             await message.answer(
                 text=t('messages.not_registered', locale=current_locale),
                 reply_markup=k('keyboards.register', locale=current_locale),
